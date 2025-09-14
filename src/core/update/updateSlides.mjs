@@ -14,7 +14,7 @@ export default function updateSlides() {
 
   const params = swiper.params;
 
-  const { wrapperEl, slidesEl, size: swiperSize, rtlTranslate: rtl, wrongRTL } = swiper;
+  const { wrapperEl, slidesEl, rtlTranslate: rtl, wrongRTL } = swiper;
   const isVirtual = swiper.virtual && params.virtual.enabled;
   const previousSlidesLength = isVirtual ? swiper.virtual.slides.length : swiper.slides.length;
   const slides = elementChildren(slidesEl, `.${swiper.params.slideClass}, swiper-slide`);
@@ -36,6 +36,7 @@ export default function updateSlides() {
   const previousSnapGridLength = swiper.snapGrid.length;
   const previousSlidesGridLength = swiper.slidesGrid.length;
 
+  const swiperSize = swiper.size - offsetBefore - offsetAfter;
   let spaceBetween = params.spaceBetween;
   let slidePosition = -offsetBefore;
   let prevSlideSize = 0;
@@ -49,7 +50,7 @@ export default function updateSlides() {
     spaceBetween = parseFloat(spaceBetween);
   }
 
-  swiper.virtualSize = -spaceBetween;
+  swiper.virtualSize = -spaceBetween - offsetBefore - offsetAfter;
 
   // reset margins
   slides.forEach((slideEl) => {
@@ -87,16 +88,26 @@ export default function updateSlides() {
 
   for (let i = 0; i < slidesLength; i += 1) {
     slideSize = 0;
-    let slide;
-    if (slides[i]) slide = slides[i];
-    if (gridEnabled) {
-      swiper.grid.updateSlide(i, slide, slides);
+    const slide = slides[i];
+    if (slide) {
+      if (gridEnabled) {
+        swiper.grid.updateSlide(i, slide, slides);
+      }
+      if (elementStyle(slide, 'display') === 'none') continue; // eslint-disable-line
     }
-    if (slides[i] && elementStyle(slide, 'display') === 'none') continue; // eslint-disable-line
 
-    if (params.slidesPerView === 'auto') {
+    if (isVirtual && params.slidesPerView === 'auto') {
+      if (params.virtual.slidesPerViewAutoSlideSize) {
+        slideSize = params.virtual.slidesPerViewAutoSlideSize;
+      }
+      if (slideSize && slide) {
+        if (params.roundLengths) slideSize = Math.floor(slideSize);
+
+        slide.style[swiper.getDirectionLabel('width')] = `${slideSize}px`;
+      }
+    } else if (params.slidesPerView === 'auto') {
       if (shouldResetSlideSize) {
-        slides[i].style[swiper.getDirectionLabel('width')] = ``;
+        slide.style[swiper.getDirectionLabel('width')] = ``;
       }
       const slideStyles = getComputedStyle(slide);
       const currentTransform = slide.style.transform;
@@ -143,12 +154,12 @@ export default function updateSlides() {
       slideSize = (swiperSize - (params.slidesPerView - 1) * spaceBetween) / params.slidesPerView;
       if (params.roundLengths) slideSize = Math.floor(slideSize);
 
-      if (slides[i]) {
-        slides[i].style[swiper.getDirectionLabel('width')] = `${slideSize}px`;
+      if (slide) {
+        slide.style[swiper.getDirectionLabel('width')] = `${slideSize}px`;
       }
     }
-    if (slides[i]) {
-      slides[i].swiperSlideSize = slideSize;
+    if (slide) {
+      slide.swiperSlideSize = slideSize;
     }
     slidesSizesGrid.push(slideSize);
 
@@ -269,7 +280,7 @@ export default function updateSlides() {
       allSlidesSize += slideSizeValue + (spaceBetween || 0);
     });
     allSlidesSize -= spaceBetween;
-    const offsetSize = (params.slidesOffsetBefore || 0) + (params.slidesOffsetAfter || 0);
+    const offsetSize = (offsetBefore || 0) + (offsetAfter || 0);
     if (allSlidesSize + offsetSize < swiperSize) {
       const allSlidesOffset = (swiperSize - allSlidesSize - offsetSize) / 2;
       snapGrid.forEach((snap, snapIndex) => {
